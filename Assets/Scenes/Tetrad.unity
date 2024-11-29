@@ -7014,6 +7014,7 @@ MonoBehaviour:
   score: {fileID: 965029357}
   level: {fileID: 739308304}
   highscore: {fileID: 1720207992}
+  m_tetrisComboFx: {fileID: 8415766701135175823, guid: 123612ceb85188648834f9add4ea155c, type: 3}
 --- !u!114 &1183500128
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -9096,6 +9097,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1738679581}
   - component: {fileID: 1738679580}
+  - component: {fileID: 1738679582}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -9130,6 +9132,21 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1738679582
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1738679579}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b900b43a39e72e41a9e506970764e4b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_currentGameMode: 0
+  m_board: {fileID: 1183500126}
+  m_movesText: {fileID: 0}
 --- !u!1 &1751662162
 GameObject:
   m_ObjectHideFlags: 0

@@ -6,12 +6,15 @@ public class Score : MonoBehaviour
     public TMP_Text score;
     public TMP_Text level;
     public TMP_Text highscore;
+
+    [SerializeField]
+    private GameObject m_tetrisComboFx;
+
     static public int scoreInt { get; private set; }
     private int levelInt;
     static public int highscoreInt { get; private set; }
     private int scoreMultiplier = 1;
 
-    // Start is called before the first frame update
     void Start()
     {
         highscoreInt = PlayerPrefs.GetInt("highscore");
@@ -45,9 +48,19 @@ public class Score : MonoBehaviour
         }
     }
 
-    public void TetrisCombo()
+    public void SendCombo(string text)
     {
-
+        //Spawn some FX text
+        TimedObject.InstantiateTimed(this.m_tetrisComboFx, 1f, (instance) =>
+        {
+            TextMeshPro textIns = instance.GetComponent<TextMeshPro>();
+            textIns.text = text;
+            textIns.color = Color.Lerp(
+                Color.white, 
+                new Color(0, 0, 0), 
+                instance.LifeTimeProgressPercentage
+            );
+        });
     }
 
     public void SetLevel(int addLevel)

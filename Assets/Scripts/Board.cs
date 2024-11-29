@@ -25,7 +25,7 @@ public class Board : MonoBehaviour
     private int lineClears;
     private bool pieceHeld = false;
     public static bool pieceSwapped;
-    Score score;
+    private Score m_score;
     Menu menu;
 
     [SerializeField]
@@ -39,6 +39,7 @@ public class Board : MonoBehaviour
     private Dictionary<Vector3Int, TileBase> m_tilemapAfterDeletion;
     private Dictionary<Vector3Int, TileBase> m_cachedTiles;
 
+    private int m_comboCount;
     public RectInt Bounds
     {
         get
@@ -64,11 +65,12 @@ public class Board : MonoBehaviour
         const int tilesGuess = 200;
         this.m_tilemapAfterDeletion = new Dictionary<Vector3Int, TileBase>(tilesGuess);
         this.m_cachedTiles = new Dictionary<Vector3Int, TileBase>(tilesGuess);
+        this.m_comboCount = 0;
 
         this.m_clearAnimationTimer = new SpartanTimer(TimeMode.RealTime);
         this.m_tetrisSoundBoard = GetComponent<SoundBoard>();
         menu = GameObject.FindAnyObjectByType<Menu>();
-        score = GameObject.FindObjectOfType<Score>();
+        m_score = GameObject.FindObjectOfType<Score>();
         tilemap = GetComponentInChildren<Tilemap>();
         activePiece = GetComponentInChildren<Piece>();
         nextPiece = gameObject.AddComponent<Piece>();
@@ -102,8 +104,8 @@ public class Board : MonoBehaviour
         Piece.startTouchPosition.Set(0, -10000); //prevent hard drop of first piece after gameover
         pieceSwapped = false;
         pieceHeld = false;
-        score.ResetScore();
-        score.SetLevel(1);
+        m_score.ResetScore();
+        m_score.SetLevel(1);
         tilemap.ClearAllTiles();
         lineClears = 0;
         SetNextPiece();
@@ -222,8 +224,8 @@ public class Board : MonoBehaviour
         menu.TransferScore();
 
         tilemap.ClearAllTiles();
-        score.ResetScore();
-        score.SetLevel(1);
+        m_score.ResetScore();
+        m_score.SetLevel(1);
         lineClears = 0;
 
         menu.ShowGameOver();
@@ -295,11 +297,17 @@ public class Board : MonoBehaviour
         }
         if (!lineCleared)
         {
-            score.ResetMultiplier();
+            this.m_comboCount = 0;
+            m_score.ResetMultiplier();
             this.SpawnPiece();
         }
         else
         {
+            this.m_comboCount++;
+            if (m_comboCount > 1)
+            {
+                this.m_score.SendCombo($"Combo x{this.m_comboCount}");
+            }
             this.m_clearAnimationTimer.Reset();
             this.m_tetrisSoundBoard.PlaySound(TetrisSound.ClearLine);
             Vibration.Vibrate(500);
@@ -342,6 +350,11 @@ public class Board : MonoBehaviour
             }
             positionsToAdd.ForEach(position => this.m_tilemapAfterDeletion[position] = this.m_ghostTile);
         }
+        const int rowsToTetris = 4;
+        if (this.m_tilemapAfterDeletion.Count / maxTilesPerRow >= rowsToTetris)
+        {
+            this.m_score.SendCombo("Tetris!!!");
+        } 
     }
 
     public bool IsLineFull(int row)
@@ -363,13 +376,13 @@ public class Board : MonoBehaviour
     }
 
     public void LineClear(int row) {
-        score.AddScore(1000);
-        score.AddMultiplier(1);
+        m_score.AddScore(1000);
+        m_score.AddMultiplier(1);
         lineClears++;
 
         if (lineClears > 10)
         {
-            score.AddLevel(1);
+            m_score.AddLevel(1);
             lineClears = 0;
         }
 
@@ -405,7 +418,7 @@ public class Board : MonoBehaviour
     public void Save()
     {
         Clear(activePiece);
-        score.SaveScore();
+        m_score.SaveScore();
         if (pieceHeld)
         {
             for (int i = 0; i < 7; i++)
@@ -451,7 +464,7 @@ public class Board : MonoBehaviour
 
     public void Load()
     {
-        score.LoadScore();
+        m_score.LoadScore();
         if (PlayerPrefs.GetInt("savedPiece") == 1)
         {
             TetrominoData data = tetrominoes[PlayerPrefs.GetInt("savedPieceTile")];
