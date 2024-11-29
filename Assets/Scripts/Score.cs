@@ -1,7 +1,4 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 using TMPro;
 
 public class Score : MonoBehaviour
@@ -46,6 +43,11 @@ public class Score : MonoBehaviour
             highscoreInt = scoreInt;
             highscore.text = "High " + highscoreInt.ToString();
         }
+    }
+
+    public void TetrisCombo()
+    {
+
     }
 
     public void SetLevel(int addLevel)

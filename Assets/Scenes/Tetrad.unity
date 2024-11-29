@@ -6998,7 +6998,7 @@ MonoBehaviour:
   data:
     tile: {fileID: 0}
     tetromino: 0
-  m_ghostTile: {fileID: 11400000, guid: bb119a324f648fd43ab439779841f4d5, type: 2}
+  m_ghostTile: {fileID: 11400000, guid: 9ca40d2c8a3c3464ea8505779c4a881d, type: 2}
 --- !u!114 &1183500127
 MonoBehaviour:
   m_ObjectHideFlags: 0

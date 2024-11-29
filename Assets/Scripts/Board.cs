@@ -2,15 +2,8 @@ using Auxiliars;
 using RDG;
 using System.Collections.Generic;
 using System.Linq;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Tilemaps;
-
-class MarkedTileBase
-{
-    public TileBase tile;
-    public bool isMarked;
-}
 
 public class Board : MonoBehaviour
 {
@@ -43,7 +36,8 @@ public class Board : MonoBehaviour
 
     private List<int> m_rowsToClear;
 
-    private Dictionary<Vector3Int, MarkedTileBase> m_tilemapAfterDeletion;
+    private Dictionary<Vector3Int, TileBase> m_tilemapAfterDeletion;
+    private Dictionary<Vector3Int, TileBase> m_cachedTiles;
 
     public RectInt Bounds
     {
@@ -63,11 +57,13 @@ public class Board : MonoBehaviour
         }
     }
 
+    private int maximumMarkedTileYPos;
+
     private void Awake()
     {
-        const int tilesGuess = 60;
-        this.m_rowsToClear = new List<int>(tilesGuess);
-        this.m_tilemapAfterDeletion = new Dictionary<Vector3Int, MarkedTileBase>(tilesGuess);
+        const int tilesGuess = 200;
+        this.m_tilemapAfterDeletion = new Dictionary<Vector3Int, TileBase>(tilesGuess);
+        this.m_cachedTiles = new Dictionary<Vector3Int, TileBase>(tilesGuess);
 
         this.m_clearAnimationTimer = new SpartanTimer(TimeMode.RealTime);
         this.m_tetrisSoundBoard = GetComponent<SoundBoard>();
@@ -84,6 +80,20 @@ public class Board : MonoBehaviour
         for (int i = 0; i < tetrominoes.Length; i++)
         {
             tetrominoes[i].Initialize();
+        }
+        
+    }
+
+    private void SetTilesFlags()
+    {
+        RectInt bounds = this.Bounds;
+        for (int col = bounds.xMin; col < bounds.xMax; col++)
+        {
+            for (int row = bounds.yMin; row < bounds.yMax; row++)
+            {
+                Vector3Int position = new Vector3Int(col, row, 0);
+                this.tilemap.SetTileFlags(position, TileFlags.None);
+            }
         }
     }
 
@@ -105,11 +115,11 @@ public class Board : MonoBehaviour
         if (!this.m_clearAnimationTimer.Started) return;
         Color color = Color.Lerp(Color.white, new Color(0, 0f, 0f, 0f), this.m_clearAnimationTimer.CurrentTimeSeconds * 2f);
         //Now, here we'll iterate over our entries and lerp the colour to alpha 0 in 0.5s
-        this.m_tilemapAfterDeletion.Where(entry => entry.Value.isMarked)
-            .ToList()
+        this.m_tilemapAfterDeletion.ToList()
             .ForEach(entry =>
             {
-                TileBase tile = this.tilemap.GetTile(entry.Key);
+                this.tilemap.SetTile(entry.Key, entry.Value);
+                this.tilemap.SetTileFlags(entry.Key, TileFlags.None);
                 this.tilemap.SetColor(entry.Key, color);
             });
     }
@@ -267,7 +277,7 @@ public class Board : MonoBehaviour
         RectInt bounds = Bounds;
         int row = bounds.yMin;
         bool lineCleared = false;
-
+        this.GetFullRowsIntoDict();
         // Clear from bottom to top
         while (row < bounds.yMax)
         {
@@ -293,21 +303,44 @@ public class Board : MonoBehaviour
             this.m_clearAnimationTimer.Reset();
             this.m_tetrisSoundBoard.PlaySound(TetrisSound.ClearLine);
             Vibration.Vibrate(500);
-            foreach (var entry in this.m_tilemapAfterDeletion)
-            {
-                if (!entry.Value.isMarked) continue;
-                this.tilemap.SetTile(entry.Key, this.m_ghostTile);
-            }
+
             TimeController.StopTimeFor(0.5f, () =>
             {
-                foreach (var entry in this.m_tilemapAfterDeletion)
+                foreach (var entry in this.m_cachedTiles)
                 {
-                    this.tilemap.SetTile(entry.Key, entry.Value.tile);
+                    this.tilemap.SetTile(entry.Key, entry.Value);
+                    this.tilemap.SetTileFlags(entry.Key, TileFlags.None);
+                    this.tilemap.SetColor(entry.Key, Color.white);
                 }
                 this.m_tilemapAfterDeletion.Clear();
+                this.m_cachedTiles.Clear();
+                this.m_clearAnimationTimer.Stop();
                 this.SpawnPiece();
             });
             
+        }
+    }
+
+    private void GetFullRowsIntoDict()
+    {
+        const int maxTilesPerRow = 10;
+        List<Vector3Int> positionsToAdd = new List<Vector3Int>(maxTilesPerRow);
+        RectInt bounds = this.Bounds;
+        for (int row = bounds.yMin; row < bounds.yMax; row++)
+        {
+            positionsToAdd.Clear();
+            for (int col = bounds.xMin; col < bounds.xMax; col++)
+            {
+                Vector3Int position = new Vector3Int(col, row, 0);
+                if (!this.tilemap.HasTile(position))
+                {
+                    positionsToAdd.Clear();
+                    break;
+                }
+                //Row is full
+                positionsToAdd.Add(position);
+            }
+            positionsToAdd.ForEach(position => this.m_tilemapAfterDeletion[position] = this.m_ghostTile);
         }
     }
 
@@ -346,18 +379,13 @@ public class Board : MonoBehaviour
 
     private void ClearLineInMap(int row, RectInt bounds)
     {
+
         // Clear all tiles in the row
         for (int col = bounds.xMin; col < bounds.xMax; col++)
         {
             Vector3Int position = new Vector3Int(col, row, 0);
             tilemap.SetTile(position, null);
-            //Record the tilemap's entries to be deleted
-            MarkedTileBase tileMarked = new MarkedTileBase
-            {
-                isMarked = true,
-                tile = null
-            };
-            this.m_tilemapAfterDeletion[position] = tileMarked;
+            //Record the tilemap's entries to be 
         }
         // Shift every row above down one
         for (int currentRow = row; currentRow < bounds.yMax; currentRow++)
@@ -368,15 +396,7 @@ public class Board : MonoBehaviour
                 TileBase above = tilemap.GetTile(position);
                 position = new Vector3Int(col, currentRow, 0);
                 this.tilemap.SetTile(position, above);
-                if (!this.m_tilemapAfterDeletion.ContainsKey(position))
-                {
-                    //Correctly update the tilemap
-                    this.m_tilemapAfterDeletion[position] = new MarkedTileBase { 
-                        isMarked = false,
-                        tile = above
-                    };
-                }
-                this.m_tilemapAfterDeletion[position].tile = above;
+                this.m_cachedTiles[position] = above;
             }
         }
     }
